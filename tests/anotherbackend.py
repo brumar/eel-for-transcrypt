@@ -1,4 +1,4 @@
-import eel
+import eel_for_transcrypt as eel
 
 with eel.import_frontend_functions():
     from web.anotherfrontend import biglogger

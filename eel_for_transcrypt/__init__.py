@@ -8,7 +8,7 @@ import bottle as btl
 import bottle.ext.websocket as wbs
 import re as rgx
 import os
-import eel.browsers as brw
+import eel_for_transcrypt.browsers as brw
 import random as rnd
 import sys
 import pkg_resources as pkg
@@ -30,7 +30,7 @@ logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.INFO)
 
 
 TIME_OUT = 10  # seconds
-_eel_js_file = pkg.resource_filename('eel', 'eel.js')
+_eel_js_file = pkg.resource_filename('eel_for_transcrypt', 'eel.js')
 _eel_js = open(_eel_js_file, encoding='utf-8').read()
 _websockets = []
 _message_loop_queue = []
@@ -113,7 +113,7 @@ def new_import(old_import):
                 f = partial(jscaller, name=imported_function)
                 setattr(sys.modules[__name__], imported_function, f)
                 _js_functions.append(imported_function)
-            return old_import("eel", globs, locs, alist, anumber)
+            return old_import("eel_for_transcrypt", globs, locs, alist, anumber)
         globs["old_import"] = old_import
         return old_import(strval, globs, locs, None, anumber)
     return new_new_import

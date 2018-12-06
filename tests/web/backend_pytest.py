@@ -1,4 +1,4 @@
-import eel
+import eel_for_transcrypt as eel
 from web.common import InventoryItem
 
 @eel.expose

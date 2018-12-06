@@ -1,12 +1,8 @@
 import re
 import sys
-
-import backend
 from web import backend_pytest
 import pytest
-import eel
-import time
-import hypothesis
+import eel_for_transcrypt as eel
 
 from hypothesis import given, example
 from hypothesis.strategies import text, integers, one_of, booleans, floats, tuples, lists

@@ -11,7 +11,8 @@ with open('README.rst') as readme_file:
 with open('HISTORY.rst') as history_file:
     history = history_file.read()
 
-requirements = [ ]
+with open('requirements.txt') as f:
+    requirements = f.read().splitlines()
 
 setup_requirements = ['pytest-runner', ]
 
@@ -38,15 +39,11 @@ setup(
     license="MIT license",
     long_description=readme + '\n\n' + history,
     include_package_data=True,
-    keywords='eel_for_transcrypt',
     name='eel_for_transcrypt',
     packages=find_packages(include=['eel_for_transcrypt']),
     package_data={
         'eel_for_transcrypt': ['eel.js'],
     },
-    install_requires=['bottle', 'bottle-websocket', 'future', 'whichcraft'],
-    description='eel fork optimized for transcrypt',
-    long_description=open('README.md', encoding='utf-8').readlines()[1],
     keywords=['gui', 'transcrypt', 'html', 'javascript', 'electron'],
     setup_requires=setup_requirements,
     test_suite='tests',

@@ -1,5 +1,5 @@
 import webbrowser as wbr
-import eel.chrome as chr
+import eel_for_transcrypt.chrome as chr
 import subprocess as sps
 
 def _build_url_from_dict(page, options):

@@ -2,7 +2,7 @@
 
 #__pragma__("skip")
 __pragma__ = lambda *args: None
-import eel
+import eel_for_transcrypt as eel
 with eel.import_backend_modules(already_imported=False):
     from web import backend_pytest
 #__pragma__("noskip")
