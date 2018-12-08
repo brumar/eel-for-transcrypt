@@ -87,7 +87,7 @@ def test_already_imported_but_safer(transpiled_file, selenium):
 
 
 def test_back_uncorrect_imports(transpiled_file, selenium):
-    with pytest.raises(Exception, match="You must write your imports under the form 'import x.y.z [as z]"):
+    with pytest.raises(Exception, match="import x.y.z"):
         with eel.import_backend_modules(already_imported=True):
             from web.imports.ping1 import pingball
 

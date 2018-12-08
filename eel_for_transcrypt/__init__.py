@@ -107,6 +107,7 @@ def new_import(old_import):
         #logging.info(f"attempt to import from frontend: {strval}, {alist}")
         global OTHER_IMPORTS
         global FRONTEND_FILES
+        global EXCEPTION_TO_RAISE
         OTHER_IMPORTS.append((strval,globs, locs, alist, anumber))
         if strval == 'shutil':
             # very important to keep this, because the debugging session in pytest
@@ -121,12 +122,12 @@ def new_import(old_import):
                 _js_functions.append(imported_function)
             return old_import("eel_for_transcrypt", globs, locs, alist, anumber)
         else:
-            raise Exception("You must write your imports under the 'form from x.y import z'")
+            EXCEPTION_TO_RAISE = "You must write your imports under the form 'from x.y import z'"
     return new_new_import
 
 
 
-
+EXCEPTION_TO_RAISE = None
 
 def new_import_backend(old_import):
     """block specific import from backend. Instead, alias the function to eel._js_call(functionname)
@@ -134,13 +135,14 @@ def new_import_backend(old_import):
     imported after this redirection"""
     # Internally, python may import things at unexpected moment
     # so be very careful to be wary when adding code in this part
-    # even printing and loging should be forbidden as they import things
+    # even printing and loging and even raising exception should be forbidden as they import things
     # because everything that will be imported, will use our patch
     # instead of the real importer
     def new_new_back_import(strval, globs, locs, alist, anumber):
         #logging.info(f"block the backend import {strval} {alist}")
         #logging.info(strval, alist)
         global BACKEND_NAMES
+        global EXCEPTION_TO_RAISE
         if strval == 'shutil':
             # very important to keep this, because the debugging session in pytest
             # import this on the fly, which can create hell on earth because this
@@ -149,6 +151,7 @@ def new_import_backend(old_import):
         if strval not in BACKEND_NAMES:
             BACKEND_NAMES.append(strval)
         if alist:
+            EXCEPTION_TO_RAISE = "You must write your imports under the form import x.y.z [as z]"
             sys.modules["__sink"] = unittest.mock.MagicMock()
             return old_import("__sink", globs, locs, alist, anumber)
         else:
@@ -162,13 +165,19 @@ def import_frontend_functions():
     Patch the python import mechanism for frontend functions
     """
     global pre_patched_value
+    global EXCEPTION_TO_RAISE
+    exception_to_raise_before = EXCEPTION_TO_RAISE
+    EXCEPTION_TO_RAISE = None
     pre_patched_value = copy.deepcopy(builtins.__import__)
     builtins.__import__ = new_import(pre_patched_value)
     logging.info("enter frontend patching")
     yield "done"
     logging.info("leaving frontend patching")
     builtins.__import__ = pre_patched_value
-    while(OTHER_IMPORTS):
+    if EXCEPTION_TO_RAISE is not None:
+        raise Exception(EXCEPTION_TO_RAISE)
+    EXCEPTION_TO_RAISE = exception_to_raise_before
+    while OTHER_IMPORTS:
         strval, globs, locs, alist, anumber = OTHER_IMPORTS.pop()
         logging.info(f"simple backend import {strval}")
         __import__(strval, globs, locs, None, anumber)
@@ -181,13 +190,18 @@ def import_backend_modules(already_imported):
     """
     if already_imported:
         global pre_patched_value
+        global EXCEPTION_TO_RAISE
+        exception_to_raise_before = EXCEPTION_TO_RAISE
+        EXCEPTION_TO_RAISE = None
         pre_patched_value = copy.deepcopy(builtins.__import__)
         builtins.__import__ = new_import_backend(pre_patched_value)
-        logging.info("enter frontend patching")
+        logging.info("enter backend patching")
         yield "done"
-        logging.info("leaving frontend patching")
+        logging.info("leaving backend patching")
         builtins.__import__ = pre_patched_value
-        import_frontend_functions
+        if EXCEPTION_TO_RAISE is not None:
+            raise Exception(EXCEPTION_TO_RAISE)
+        EXCEPTION_TO_RAISE = exception_to_raise_before
     else:
         yield "DONE"
 
