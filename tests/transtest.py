@@ -185,5 +185,5 @@ def test_spike_dataclass(s, get_a_dataclass, build_send_getback_a_dataclass, acc
     assert v1 == v2
     assert v2 == v3
     assert v3 == v4
-    assert val1 == val2
+    assert val1 == pytest.approx(val2, 0.1)
 

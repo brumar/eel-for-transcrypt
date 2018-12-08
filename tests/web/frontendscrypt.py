@@ -18,7 +18,7 @@ document = MagicMock()
 # Also, since imports are resolved in one pass, cyclic imports are not supported.
 alert = console = print
 with eel.import_backend_modules(already_imported=True):
-    from sources import backend
+    from web import backendcalc
 
 #with eel.import_backend_modules(fake=False):
 #    from sources import  anotherbackend
@@ -28,7 +28,7 @@ __pragma__("noskip")
 async def frontcompute():
     a = document.getElementsByName("value_1")[0].value
     b = document.getElementsByName("value_2")[0].value
-    v = await backend.compute(a, b)()
+    v = await backendcalc.compute(a, b)()
     console.log(v)
     document.getElementById("result").innerHTML = v
 
