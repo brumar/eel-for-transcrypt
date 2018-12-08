@@ -54,7 +54,7 @@ frontend_modules = defaultdict(set)
 NEEDED_PY_FUNCTIONS = []
 BACKEND_NAMES = []
 FRONTEND_FILES = []
-OTHER_IMPORTS= []
+OTHER_IMPORTS = []
 
 import contextlib
 import builtins
@@ -106,7 +106,13 @@ def new_import(old_import):
     def new_new_import(strval, globs, locs, alist, anumber):
         #logging.info(f"attempt to import from frontend: {strval}, {alist}")
         global OTHER_IMPORTS
+        global FRONTEND_FILES
         OTHER_IMPORTS.append((strval,globs, locs, alist, anumber))
+        if strval == 'shutil':
+            # very important to keep this, because the debugging session in pytest
+            # import this on the fly, which can create hell on earth because this
+            # code will mock out large part of stlib and loop forerver
+            return old_import(strval, globs, locs, alist, anumber)
         if alist is not None:
             for imported_function in alist:
                 _mock_js_function(imported_function)
@@ -114,8 +120,8 @@ def new_import(old_import):
                 setattr(sys.modules[__name__], imported_function, f)
                 _js_functions.append(imported_function)
             return old_import("eel_for_transcrypt", globs, locs, alist, anumber)
-        globs["old_import"] = old_import
-        return old_import(strval, globs, locs, None, anumber)
+        else:
+            raise Exception("You must write your imports under the 'form from x.y import z'")
     return new_new_import
 
 
@@ -128,11 +134,20 @@ def new_import_backend(old_import):
     imported after this redirection"""
     # Internally, python may import things at unexpected moment
     # so be very careful to be wary when adding code in this part
+    # even printing and loging should be forbidden as they import things
     # because everything that will be imported, will use our patch
     # instead of the real importer
     def new_new_back_import(strval, globs, locs, alist, anumber):
-        logging.info(f"block the backend import {strval} {alist}")
+        #logging.info(f"block the backend import {strval} {alist}")
         #logging.info(strval, alist)
+        global BACKEND_NAMES
+        if strval == 'shutil':
+            # very important to keep this, because the debugging session in pytest
+            # import this on the fly, which can create hell on earth because this
+            # code will mock out large part of stlib and loop forerver
+            return old_import(strval, globs, locs, alist, anumber)
+        if strval not in BACKEND_NAMES:
+            BACKEND_NAMES.append(strval)
         if alist:
             sys.modules["__sink"] = unittest.mock.MagicMock()
             return old_import("__sink", globs, locs, alist, anumber)
@@ -535,8 +550,8 @@ def _call_return(call):
 
 
 def _expose(name, function):
-    msg = 'Already exposed function with name "%s"' % name
-    assert name not in _exposed_functions, msg
+    if name in _exposed_functions:
+        raise Exception(f"Already exposed function with name {name}")
     _exposed_functions[name] = function
 
 
