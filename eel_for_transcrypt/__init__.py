@@ -14,7 +14,7 @@ import sys
 import pkg_resources as pkg
 import socket
 import contextlib
-import importlib
+import builtins
 import pkgutil
 from collections import defaultdict
 from functools import partial
@@ -24,12 +24,11 @@ import types
 import logging
 import dataclasses
 from functools import wraps
+import re
 logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.INFO)
 
-#logger = logging.getLogger("eel")
 
 
-TIME_OUT = 10  # seconds
 _eel_js_file = pkg.resource_filename('eel_for_transcrypt', 'eel.js')
 _eel_js = open(_eel_js_file, encoding='utf-8').read()
 _websockets = []
@@ -55,16 +54,31 @@ NEEDED_PY_FUNCTIONS = []
 BACKEND_NAMES = []
 FRONTEND_FILES = []
 OTHER_IMPORTS = []
+EXCEPTION_TO_RAISE = None
 
-import contextlib
-import builtins
+PY_TIME_OUT = 3  # seconds
+JS_TIMEOUT = 3  # seconds
 
-#EEL_MAGIC_MOCK = MagicMock()
 
-import re
+def set_timeouts(timeout):
+    global PY_TIME_OUT
+    global JS_TIME_OUT
+    PY_TIME_OUT = timeout
+    JS_TIME_OUT = timeout
+
+
+def set_timeout_js(timeout):
+    global JS_TIME_OUT
+    JS_TIME_OUT = timeout
+
+
+def set_timeout_py(timeout):
+    global PY_TIME_OUT
+    PY_TIME_OUT = timeout
 
 
 def notcommented(line):
+    # unused anymore
     for car in line:
         if car == "#":
             return False
@@ -74,7 +88,8 @@ def notcommented(line):
 
 
 def find_exposed_transcrypt_functions(filepath, caller):
-    regex = caller+"\.([^(]+)\("
+    # unused anymore
+    regex = caller + "\.([^(]+)\("
     with open(filepath, "r") as f:
         vlist = [line.strip() for line in f if notcommented(line)]
         for match in re.finditer(regex, "".join(vlist), re.MULTILINE):
@@ -90,12 +105,13 @@ def search_in_import(strval):
 def add_to_callers(caller, strval):
     frontend_modules[strval].add(caller)
 
+
 def jscaller(*args, **kwargs):
     name = kwargs.pop("name")
     arglist = list(kwargs.values()) + list(args)
     return _js_call(name, arglist)
 
-# Public functions
+
 def new_import(old_import):
     """block import from frontend. Instead, alias the function to eel._js_call(functionname) 
     and redirect the import so that this is the function that is really imported"""
@@ -108,7 +124,7 @@ def new_import(old_import):
         global OTHER_IMPORTS
         global FRONTEND_FILES
         global EXCEPTION_TO_RAISE
-        OTHER_IMPORTS.append((strval,globs, locs, alist, anumber))
+        OTHER_IMPORTS.append((strval, globs, locs, alist, anumber))
         if strval == 'shutil':
             # very important to keep this, because the debugging session in pytest
             # import this on the fly, which can create hell on earth because this
@@ -127,7 +143,6 @@ def new_import(old_import):
 
 
 
-EXCEPTION_TO_RAISE = None
 
 def new_import_backend(old_import):
     """block specific import from backend. Instead, alias the function to eel._js_call(functionname)
@@ -365,9 +380,6 @@ def start(*start_urls, **kwargs):
 def sleep(seconds):
     gvt.sleep(seconds)
 
-def set_timeout(timeout):
-    global TIME_OUT
-    TIME_OUT = timeout
 
 def spawn(function, *args, **kwargs):
     gvt.spawn(function, *args, **kwargs)
@@ -467,8 +479,8 @@ def _process_message(message, ws):
                                                      'continue': not iterator_ended}));
                 previous_result = result
         else:
-            _repeated_send(ws, eel_json_dumps({  'return': message['call'],
-                                        'value': return_val    }))
+            _repeated_send(ws, eel_json_dumps({'return': message['call'],
+                                        'value': return_val}))
     elif 'return' in message:
         # from js to python
         call_id = message['return']
@@ -557,7 +569,7 @@ def _call_return(call):
                     return _call_return_values.pop(call_id)
                 sleep(0.001)
                 index += 0.001
-                if index >= TIME_OUT:
+                if index >= JS_TIME_OUT:
                     logging.error(f"timed out. No answer from javascript. call_id {call_id}")
                     break
     return return_func
@@ -577,7 +589,7 @@ def _websocket_close(page):
         _on_close_callback(page, sockets)
         logging.warning("_on_close_callback is called")
     else:
-        sleep(1.0)
+        sleep(JS_TIMEOUT)
         if len(_websockets) == 0:
             logging.error("The system has exited")
             sys.exit()

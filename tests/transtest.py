@@ -90,7 +90,7 @@ def identity_py(transpiled_file, selenium):
 
 def start(selenium, block=False, webpath="web", alive=False):
     eel.init(webpath, search_exposed_js=False, search_into_imports=True)  # Give folder containing web files
-    eel.set_timeout(1)
+    eel.set_timeouts(1)
     eel.register_frontend_js_files(["./web/__target__/tests.js"])
     eel.register_backend_names(["test_web", "backend_pytest", "transtest"])
     eel.start(
@@ -171,6 +171,14 @@ def test_python_generator(call_a_python_generator_from_js):
     vals = call_a_python_generator_from_js(mn=0, mx=10)()
     assert list(vals) == list(range(0, 10))
 
+def test_transcrypt_generator_single_val(transcrypt_generator):
+    vals = transcrypt_generator(mn=0, mx=1)()
+    assert list(vals) == list(range(0, 1))
+
+def test_python_generator_single_val(call_a_python_generator_from_js):
+    vals = call_a_python_generator_from_js(mn=0, mx=1)()
+    assert list(vals) == list(range(0, 1))
+
 @given(s=tuples(text(), floats(max_value=1_000_000_000, min_value=-1_000_000_000), integers(max_value=1_000_000_000)))
 def test_spike_dataclass(s, get_a_dataclass, build_send_getback_a_dataclass, accept_a_dataclass):
     v1 = InventoryItem(*s)
@@ -187,3 +195,36 @@ def test_spike_dataclass(s, get_a_dataclass, build_send_getback_a_dataclass, acc
     assert v3 == v4
     assert val1 == pytest.approx(val2, 0.1)
 
+
+def test_not_too_sluggish_js_function(transpiled_file, selenium):
+    start(selenium)
+    eel.set_timeouts(1)
+    eel.set_timeout_js(2)
+    with eel.import_frontend_functions():
+        from web.tests import sluggish
+    val = sluggish(1.5)()
+    assert val is True
+
+
+    eel.set_timeout_js(1)
+    with eel.import_frontend_functions():
+        from web.tests import sluggish
+    val = sluggish(0.5)()
+    assert val is True
+
+
+def test_too_sluggish_js_function(transpiled_file, selenium):
+    start(selenium)
+    eel.set_timeouts(1)
+    eel.set_timeout_js(1)
+    with eel.import_frontend_functions():
+        from web.tests import sluggish
+    val = sluggish(1.5)()
+    assert val is None
+    
+    
+    eel.set_timeout_js(0.2)
+    with eel.import_frontend_functions():
+        from web.tests import sluggish
+    val = sluggish(0.5)()
+    assert val is None
