@@ -19,7 +19,7 @@ import pkgutil
 from collections import defaultdict
 from functools import partial
 import copy
-import unittest
+from unittest import mock
 import types
 import logging
 import dataclasses
@@ -167,10 +167,10 @@ def new_import_backend(old_import):
             BACKEND_NAMES.append(strval)
         if alist:
             EXCEPTION_TO_RAISE = "You must write your imports under the form import x.y.z [as z]"
-            sys.modules["__sink"] = unittest.mock.MagicMock()
+            sys.modules["__sink"] = mock.MagicMock()
             return old_import("__sink", globs, locs, alist, anumber)
         else:
-            sys.modules["__sink"] = unittest.mock.MagicMock()
+            sys.modules["__sink"] = mock.MagicMock()
             return old_import("__sink", globs, locs, None, anumber)
     return new_new_back_import
 
@@ -619,4 +619,3 @@ class EelJSONEncoder(jsn.JSONEncoder):
 
 def eel_json_dumps(target):
     return jsn.dumps(target, cls=EelJSONEncoder)
-
