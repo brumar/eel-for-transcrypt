@@ -133,27 +133,39 @@ eel = {
                 }
             };
 
-            eel._websocket.onmessage = function (e) {
+            eel._websocket.onmessage = async function (e) {
+                console.log(e)
                 let message = JSON.parse(e.data);
-                debugger;
                 console.log(message)
                 if(message.hasOwnProperty('call') ) {
                     // Python making a function call into us
                     if(message.name in eel._exposed_functions) {
-                        let return_val_or_promise_or_generator = eel._exposed_functions[message.name](...message.args);
-                            if ((return_val_or_promise_or_generator !== undefined)&&(return_val_or_promise_or_generator.next !== undefined)){
+                        let return_val_or_promise_or_generator_or_asyncgenerator = eel._exposed_functions[message.name](...message.args);
+                            if ((eel._exposed_functions[message.name].constructor !== undefined)&&(eel._exposed_functions[message.name].constructor.name == "AsyncGeneratorFunction")){
+                                asyncgen = return_val_or_promise_or_generator_or_asyncgenerator
+                                for await (value of return_val_or_promise_or_generator_or_asyncgenerator){
+                                    eel._websocket.send(eel._toJSON({'return': message.call, 'value': value, 'continue':true}));
+                                }
+                                    eel._websocket.send(eel._toJSON({'return': message.call, 'value': null, 'continue':false}));
+                            }
+                            else if ((return_val_or_promise_or_generator_or_asyncgenerator !== undefined)&&(return_val_or_promise_or_generator_or_asyncgenerator.next !== undefined)){
                                 // this is a generator
-                                it = return_val_or_promise_or_generator
+                                it = return_val_or_promise_or_generator_or_asyncgenerator
                                 let previous_result = it.next();
                                 while (!previous_result.done) {
                                     result = it.next();
-                                    eel._websocket.send(eel._toJSON({'return': message.call, 'value': previous_result.value, 'continue':true}));
+                                    // TODO : adapter pour async generators
+                                    Promise.resolve(previous_result).then(function(previous_result) {
+                                        eel._websocket.send(eel._toJSON({'return': message.call, 'value': previous_result.value, 'continue':true}));
+                                    })
                                     previous_result = result
-                                    }
+                                }
+                                Promise.resolve(previous_result).then(function(previous_result) {
                                     eel._websocket.send(eel._toJSON({'return': message.call, 'value': previous_result.value, 'continue':false}));
+                                })
                             }
                             else{
-                                return_val_or_promise = return_val_or_promise_or_generator
+                                return_val_or_promise = return_val_or_promise_or_generator_or_asyncgenerator
                                 Promise.resolve(return_val_or_promise).then(function(value) {
                                     eel._websocket.send(eel._toJSON({'return': message.call, 'value': value}));
                                 })

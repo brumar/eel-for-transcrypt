@@ -3,6 +3,7 @@ import sys
 from web import backend_pytest
 import pytest
 import eel_for_transcrypt as eel
+import types
 
 from hypothesis import given, example
 from hypothesis.strategies import text, integers, one_of, booleans, floats, tuples, lists
@@ -39,12 +40,14 @@ def transpiled_file():
     sys.argv[0] = re.sub(r"(-script\.pyw?|\.exe)?$", "", sys.argv[0])
     transpile()
 
+
 @pytest.fixture
 def build_send_getback_a_dataclass(transpiled_file, selenium):
     with eel.import_frontend_functions():
         from web.tests import build_send_getback_a_dataclass
     start(selenium)
     return build_send_getback_a_dataclass
+
 
 @pytest.fixture
 def accept_a_dataclass(transpiled_file, selenium):
@@ -53,12 +56,14 @@ def accept_a_dataclass(transpiled_file, selenium):
     start(selenium)
     return accept_a_dataclass
 
+
 @pytest.fixture
 def get_a_dataclass(transpiled_file, selenium):
     with eel.import_frontend_functions():
         from web.tests import get_a_dataclass
     start(selenium)
     return get_a_dataclass
+
 
 @pytest.fixture
 def identity_js(transpiled_file, selenium):
@@ -67,12 +72,22 @@ def identity_js(transpiled_file, selenium):
     start(selenium)
     return identity_js
 
+
 @pytest.fixture
 def call_a_python_generator_from_js(transpiled_file, selenium):
     with eel.import_frontend_functions():
         from web.tests import call_a_python_generator_from_js
     start(selenium)
     return call_a_python_generator_from_js
+
+
+@pytest.fixture
+def transcrypt_async_generator(transpiled_file, selenium):
+    with eel.import_frontend_functions():
+        from web.tests import transcrypt_async_generator
+    start(selenium)
+    return transcrypt_async_generator
+
 
 @pytest.fixture
 def transcrypt_generator(transpiled_file, selenium):
@@ -81,12 +96,14 @@ def transcrypt_generator(transpiled_file, selenium):
     start(selenium)
     return transcrypt_generator
 
+
 @pytest.fixture
 def identity_py(transpiled_file, selenium):
     with eel.import_frontend_functions():
         from web.tests import identity_caller
     start(selenium)
     return identity_caller
+
 
 def start(selenium, block=False, webpath="web", alive=False):
     eel.init(webpath, search_exposed_js=False, search_into_imports=True)  # Give folder containing web files
@@ -98,7 +115,7 @@ def start(selenium, block=False, webpath="web", alive=False):
         size=(300, 200),
         block=block,
         options=web_app_options,
-        #callback=restart,
+        # callback=restart,
         alive=alive,
     )  # Start
     selenium.get("http://localhost:8000/index.html")
@@ -106,8 +123,8 @@ def start(selenium, block=False, webpath="web", alive=False):
 
 def restart(selenium, page, websockets):
     start(selenium, block=False, webpath="web", alive=True)
-    
-    
+
+
 def wait_for_value1(selenium):
     try:
         selenium.find_element_by_name("value_1")
@@ -115,13 +132,14 @@ def wait_for_value1(selenium):
     except:
         return False
 
-#lists, sets, tuples,
+
+# lists, sets, tuples,
 @given(s=one_of(text(), integers(max_value=1_000_000_000),
                 booleans(), floats(max_value=1_000_000_000, min_value=-1_000_000_000)
                 ))
 def test_identity_simple_types_strategy(s, identity_js):
     v = identity_js(s)()
-    assert v== s
+    assert v == s
 
 
 @given(s=tuples(text(), integers(max_value=1_000_000_000), text(), text()))
@@ -140,11 +158,13 @@ def test_identity_simple_types(identity_js):
     assert identity_js(True)() is True
     assert identity_js({"a": "b", "c": "d"})() == {"a": "b", "c": "d"}
 
+
 def test_identity_caller(identity_py):
     assert identity_py(0)() is 0
     assert identity_py(False)() is False
     assert identity_py(True)() is True
     assert identity_py({"a": "b", "c": "d"})() == {"a": "b", "c": "d"}
+
 
 @given(s=one_of(text(), integers(max_value=1_000_000_000),
                 booleans(), floats(max_value=1_000_000_000, min_value=-1_000_000_000)
@@ -165,19 +185,25 @@ def test_identity_collections_py(s, identity_py):
 
 def test_transcrypt_generator(transcrypt_generator):
     vals = transcrypt_generator(mn=0, mx=10)()
+    assert isinstance(vals, types.GeneratorType)
+    
     assert list(vals) == list(range(0, 10))
+
 
 def test_python_generator(call_a_python_generator_from_js):
     vals = call_a_python_generator_from_js(mn=0, mx=10)()
     assert list(vals) == list(range(0, 10))
 
+
 def test_transcrypt_generator_single_val(transcrypt_generator):
     vals = transcrypt_generator(mn=0, mx=1)()
     assert list(vals) == list(range(0, 1))
 
+
 def test_python_generator_single_val(call_a_python_generator_from_js):
     vals = call_a_python_generator_from_js(mn=0, mx=1)()
     assert list(vals) == list(range(0, 1))
+
 
 @given(s=tuples(text(), floats(max_value=1_000_000_000, min_value=-1_000_000_000), integers(max_value=1_000_000_000)))
 def test_spike_dataclass(s, get_a_dataclass, build_send_getback_a_dataclass, accept_a_dataclass):
@@ -198,14 +224,12 @@ def test_spike_dataclass(s, get_a_dataclass, build_send_getback_a_dataclass, acc
 
 def test_not_too_sluggish_js_function(transpiled_file, selenium):
     start(selenium)
-    eel.set_timeouts(1)
     eel.set_timeout_js(2)
     with eel.import_frontend_functions():
         from web.tests import sluggish
     val = sluggish(1.5)()
     assert val is True
-
-
+    
     eel.set_timeout_js(1)
     with eel.import_frontend_functions():
         from web.tests import sluggish
@@ -219,12 +243,59 @@ def test_too_sluggish_js_function(transpiled_file, selenium):
     eel.set_timeout_js(1)
     with eel.import_frontend_functions():
         from web.tests import sluggish
-    val = sluggish(1.5)()
+    val = sluggish(2)()
     assert val is None
-    
     
     eel.set_timeout_js(0.2)
     with eel.import_frontend_functions():
         from web.tests import sluggish
     val = sluggish(0.5)()
     assert val is None
+
+
+@pytest.mark.skip(reason="no current way to time out python call. Only js calls can time out")
+def test_too_sluggish_py_function(transpiled_file, selenium):
+    start(selenium)
+    eel.set_timeout_js(25)
+    with eel.import_frontend_functions():
+        from web.tests import call_a_sluggish_pythonfunction
+    v = call_a_sluggish_pythonfunction(24)()
+    assert v is True
+
+
+def test_python_call_with_kwargs(transpiled_file, selenium):
+    start(selenium)
+    with eel.import_frontend_functions():
+        from web.tests import aminusb
+    v = aminusb(a=5, b=2)()
+    assert v == 3
+    
+    v = aminusb(5, b=2)()
+    assert v == 3
+    
+    v = aminusb(5, 2)()
+    assert v == 3
+
+
+log = []
+
+
+def call_a_gen(transcrypt_async_generator):
+    global log
+    vals = transcrypt_async_generator(mn=0, mx=10, pause_between_yields=0.1)()
+    for v in vals:
+        log.append(v)
+
+
+def test_call_multiple_js_generators(transcrypt_async_generator):
+    # we test that if a javascript generator "takes time", it's non blocking
+    # for the python backend
+    eel.set_timeout_js(120)
+    for i in range(10):
+        eel.spawn(call_a_gen, transcrypt_async_generator)
+    eel.sleep(2)
+    assert len(log) == 10 * 10  # , "we wait long enough"
+    nbsame = sum(a == b for a, b in zip(log[1:], log[:-1]))
+    # as log writes values as they arrive, one must
+    # get all the 0s then all the 1s etc...
+    assert nbsame > 50

@@ -49,12 +49,19 @@ async def identity_caller(anything):
     v = await backend_pytest.i_return_the_same(anything)()
     return v
 
-
 def transcrypt_generator(mn, mx):
     # NOTE : kwargs not working
     #console.log(mn, mx)
     for v in range(mn, mx):
         yield v
+
+async def transcrypt_async_generator(mn, mx, pause_between_yields=0):
+    # NOTE : kwargs not working
+    #console.log(mn, mx)
+    for v in range(mn, mx):
+        await timer(pause_between_yields)
+        yield v
+    return
     #v = list(eel.a_generator(mn, mx)())
     #return y
 
@@ -83,3 +90,22 @@ async def accept_a_dataclass(*args, **kwargs):
     return d
 __pragma__("nokwargs")
 __pragma__("js", {},'Object.defineProperty(accept_a_dataclass, "name", { value: "accept_a_dataclass" });')
+
+
+def timer(length):
+    """length : seconds"""
+    def timer_elapse(resolve):
+        setTimeout(lambda: resolve(), length*1000)
+    return __new__(Promise(timer_elapse, lambda: console.log("exception in timer")))
+
+
+async def sluggish(timeout):
+    t = await timer(timeout)
+    return True
+
+async def call_a_sluggish_pythonfunction(timeout):
+    t = await backend_pytest.sluggish(timeout)()
+    return t
+
+def aminusb(a, b):
+    return a - b

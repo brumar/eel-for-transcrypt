@@ -57,7 +57,27 @@ OTHER_IMPORTS = []
 EXCEPTION_TO_RAISE = None
 
 PY_TIME_OUT = 3  # seconds
-JS_TIMEOUT = 3  # seconds
+JS_TIME_OUT = 120  # seconds
+broadcast_queue = None
+
+
+from gevent.queue import Queue
+
+
+class BroadcastQueue(object):
+    def __init__(self):
+        self._queues = []
+
+    def register(self):
+        q = Queue()
+        self._queues.append(q)
+        return q
+
+    def broadcast(self, val):
+        for q in self._queues:
+            q.put(val)
+
+broadcast_queue = BroadcastQueue()
 
 
 def set_timeouts(timeout):
@@ -108,7 +128,7 @@ def add_to_callers(caller, strval):
 
 def jscaller(*args, **kwargs):
     name = kwargs.pop("name")
-    arglist = list(kwargs.values()) + list(args)
+    arglist = list(args) + list(kwargs.values())
     return _js_call(name, arglist)
 
 
@@ -459,7 +479,6 @@ def call_debug_eel():
 
 
 def _process_message(message, ws):
-    global accumulators
     if 'call' in message:
         # from python to js
         return_val = _exposed_functions[message['name']](*message['args'])
@@ -488,24 +507,18 @@ def _process_message(message, ws):
         docontinue = generator and message["continue"]!=False
         if call_id in _call_return_callbacks:
             if not docontinue:
+                # we can safely pop the callback function as
+                # it won't be used anymore
                 callback = _call_return_callbacks.pop(call_id)
                 if not generator:
                     # the last value of a generator is None
-                    # and should not be sent back 
+                    # and should not be sent back
                     callback(message["value"])
             else:
                 callback = _call_return_callbacks[call_id]
                 callback(message['value'])
         else:
-            # todo => checkifthis works in eelcloned
-            # check if it blocks everything or not
-            if generator:
-                if docontinue:
-                    accumulators[call_id].append(message["value"])
-                else:
-                    _call_return_values[call_id] = accumulators.pop(call_id)
-            else:
-                _call_return_values[call_id] = message["value"]
+            broadcast_queue.broadcast(message)
     else:
         logging.error('Invalid message received: ', message)
         _debug_health_check()
@@ -563,15 +576,40 @@ def _call_return(call):
         if callback is not None:
             _call_return_callbacks[call_id] = callback
         else:
-            index = 0
+            queue = broadcast_queue.register()
             while True:
-                if call_id in _call_return_values:
-                    return _call_return_values.pop(call_id)
-                sleep(0.001)
-                index += 0.001
-                if index >= JS_TIME_OUT:
-                    logging.error(f"timed out. No answer from javascript. call_id {call_id}")
-                    break
+                try:
+                    val = queue.get(timeout=JS_TIME_OUT)
+                    #print("val outside")
+                    #print(val)
+                except:
+                    return None
+                try:
+                    if val["return"] != call_id:
+                        continue
+                except KeyError:
+                    continue
+                if "continue" in val:
+                    def agenerator(val):
+                        yield val["value"]
+                        while True:
+                            try:
+                                val = queue.get(timeout=JS_TIME_OUT)
+                                #print("val inside")
+                                #print(val)
+                            except:
+                                raise StopIteration
+                            else:
+                                try:
+                                    if val["return"] == call_id:
+                                        if val["continue"] is False:
+                                            raise StopIteration
+                                        yield val["value"]
+                                except KeyError:
+                                    continue
+                    return agenerator(val)
+                else:
+                    return val["value"]
     return return_func
 
 
@@ -589,7 +627,7 @@ def _websocket_close(page):
         _on_close_callback(page, sockets)
         logging.warning("_on_close_callback is called")
     else:
-        sleep(JS_TIMEOUT)
+        sleep(JS_TIME_OUT)
         if len(_websockets) == 0:
             logging.error("The system has exited")
             sys.exit()

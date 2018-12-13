@@ -17,8 +17,6 @@ document = MagicMock()
 alert = console = print
 with eel.import_backend_modules(already_imported=True):
     import web.imports.ping1 as ping1
-with eel.import_backend_modules(already_imported=False):
-    import web.imports.ping2 as ping2
 __pragma__("noskip")
 
 async def pongball(counter):

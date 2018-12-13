@@ -38,7 +38,6 @@ def logdone():
 
 
 
-
 class SharedState:
     def __init__(self, val1, val2):
         self.val1 = val1

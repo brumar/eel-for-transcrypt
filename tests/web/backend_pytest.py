@@ -16,3 +16,11 @@ def a_generator(mn, mx):
 def return_a_dataclass(datac: InventoryItem):
     assert isinstance(datac, InventoryItem)
     return datac
+
+
+@eel.expose
+def sluggish(timeout):
+    eel.sleep(timeout)
+    return True
+
+
