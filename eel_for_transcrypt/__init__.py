@@ -60,6 +60,19 @@ PY_TIME_OUT = 3  # seconds
 JS_TIME_OUT = 120  # seconds
 broadcast_queue = None
 
+POSSIBLE_IMPORTS = set()
+
+
+
+def listpossible_local_imports():
+    for root, _, files in os.walk("."):
+        for name in files:
+            if name.endswith(".py"):
+                POSSIBLE_IMPORTS.add(name[:-3])
+
+
+listpossible_local_imports()
+
 
 from gevent.queue import Queue
 
@@ -144,12 +157,13 @@ def new_import(old_import):
         global OTHER_IMPORTS
         global FRONTEND_FILES
         global EXCEPTION_TO_RAISE
-        OTHER_IMPORTS.append((strval, globs, locs, alist, anumber))
-        if strval == 'shutil':
+        if strval.split(".")[-1] not in POSSIBLE_IMPORTS:
             # very important to keep this, because the debugging session in pytest
             # import this on the fly, which can create hell on earth because this
             # code will mock out large part of stlib and loop forerver
             return old_import(strval, globs, locs, alist, anumber)
+        #else:
+        #    OTHER_IMPORTS.append((strval, globs, locs, alist, anumber))
         if alist is not None:
             for imported_function in alist:
                 _mock_js_function(imported_function)
@@ -178,7 +192,7 @@ def new_import_backend(old_import):
         #logging.info(strval, alist)
         global BACKEND_NAMES
         global EXCEPTION_TO_RAISE
-        if strval == 'shutil':
+        if strval.split(".")[-1] not in POSSIBLE_IMPORTS:
             # very important to keep this, because the debugging session in pytest
             # import this on the fly, which can create hell on earth because this
             # code will mock out large part of stlib and loop forerver
